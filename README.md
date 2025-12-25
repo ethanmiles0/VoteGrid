@@ -1,110 +1,185 @@
-# FHEVM Hardhat Template
+# VoteGrid
 
-A Hardhat-based template for developing Fully Homomorphic Encryption (FHE) enabled Solidity smart contracts using the
-FHEVM protocol by Zama.
+VoteGrid is a privacy-preserving voting dApp that keeps all vote tallies encrypted on-chain until a poll is finalized.
+It uses Zama FHEVM to enable encrypted computation while remaining compatible with standard Ethereum wallets.
 
-## Quick Start
+## Project Overview
 
-For detailed instructions see:
-[FHEVM Hardhat Quick Start Tutorial](https://docs.zama.ai/protocol/solidity-guides/getting-started/quick-start-tutorial)
+VoteGrid lets anyone create a time-bounded poll with 2 to 4 options, collect encrypted votes, and reveal results only
+after the poll ends. Voters submit an encrypted choice with a relayer proof; the smart contract updates encrypted counts
+without ever seeing the plaintext vote. Once the poll ends, anyone can finalize it to make the encrypted tallies publicly
+decryptable.
 
-### Prerequisites
+## Problems Solved
 
-- **Node.js**: Version 20 or higher
-- **npm or yarn/pnpm**: Package manager
+- Public blockchains make votes and tallies transparent, which breaks voter privacy.
+- Private voting often requires centralized servers or off-chain trust.
+- Standard voting dApps cannot compute on encrypted data without revealing it.
 
-### Installation
+VoteGrid solves these problems by keeping votes encrypted end-to-end on-chain, enabling tally updates without
+decryption, and only revealing results after the poll window closes.
 
-1. **Install dependencies**
+## Key Advantages
 
-   ```bash
-   npm install
-   ```
+- End-to-end encrypted votes with on-chain tallying.
+- Results are hidden until poll finalization, preventing early influence.
+- Anyone can finalize a poll after it ends; no admin gate is required.
+- Simple constraints (2-4 options, clear time window) make polls predictable.
+- Fully compatible with Ethereum tooling through FHEVM.
 
-2. **Set up environment variables**
+## Core Features
 
-   ```bash
-   npx hardhat vars set MNEMONIC
+- Create polls with a name, 2-4 options, and a start/end time.
+- Cast encrypted votes with relayer-generated proofs.
+- Encrypted tally updates per option.
+- One vote per address per poll.
+- Finalize polls to make results publicly decryptable.
+- Query poll metadata and options without exposing tallies.
 
-   # Set your Infura API key for network access
-   npx hardhat vars set INFURA_API_KEY
+## How It Works
 
-   # Optional: Set Etherscan API key for contract verification
-   npx hardhat vars set ETHERSCAN_API_KEY
-   ```
+### Poll lifecycle
 
-3. **Compile and test**
+1. A creator calls `createPoll` with a name, options, and a time window.
+2. Voters submit an encrypted option index plus a relayer proof using `castVote`.
+3. The contract updates encrypted counts for every option using FHE operations.
+4. After the end time, anyone calls `finalizePoll` to mark the poll finalized.
+5. Encrypted counts become publicly decryptable and can be read from the chain.
 
-   ```bash
-   npm run compile
-   npm run test
-   ```
+### Encryption flow
 
-4. **Deploy to local network**
+- The frontend requests the Zama relayer to produce encrypted input and a proof.
+- The contract validates the encrypted input and updates encrypted counts.
+- Encrypted tallies remain inaccessible until the poll is finalized.
+- Finalization converts tallies to publicly decryptable ciphertexts.
 
-   ```bash
-   # Start a local FHEVM-ready node
-   npx hardhat node
-   # Deploy to local network
-   npx hardhat deploy --network localhost
-   ```
+## Architecture
 
-5. **Deploy to Sepolia Testnet**
+- Smart contracts: `contracts/VoteGrid.sol` implements the encrypted voting logic.
+- Relayer: produces encrypted inputs and proofs for `castVote`.
+- Frontend: React + Vite UI in `home/` for poll creation and voting.
+- Deployment artifacts: network-specific ABIs live in `deployments/`.
 
-   ```bash
-   # Deploy to Sepolia
-   npx hardhat deploy --network sepolia
-   # Verify contract on Etherscan
-   npx hardhat verify --network sepolia <CONTRACT_ADDRESS>
-   ```
+## Technology Stack
 
-6. **Test on Sepolia Testnet**
+- Solidity 0.8.27 with Zama FHEVM libraries
+- Hardhat, hardhat-deploy, TypeScript
+- React + Vite frontend
+- viem for reads, ethers for writes
+- Rainbow wallet integration
 
-   ```bash
-   # Once deployed, you can run a simple test on Sepolia.
-   npx hardhat test --network sepolia
-   ```
-
-## 📁 Project Structure
+## Repository Structure
 
 ```
-fhevm-hardhat-template/
-├── contracts/           # Smart contract source files
-│   └── FHECounter.sol   # Example FHE counter contract
-├── deploy/              # Deployment scripts
-├── tasks/               # Hardhat custom tasks
-├── test/                # Test files
-├── hardhat.config.ts    # Hardhat configuration
-└── package.json         # Dependencies and scripts
+VoteGrid/
+├── contracts/              # Smart contracts
+│   ├── VoteGrid.sol         # Encrypted voting contract
+│   └── FHECounter.sol       # Example contract
+├── deploy/                  # Deployment scripts
+├── deployments/             # Deployment artifacts by network
+├── tasks/                   # Hardhat tasks
+├── test/                    # Contract tests
+├── home/                    # Frontend app
+└── hardhat.config.ts        # Hardhat configuration
 ```
 
-## 📜 Available Scripts
+## Prerequisites
 
-| Script             | Description              |
-| ------------------ | ------------------------ |
-| `npm run compile`  | Compile all contracts    |
-| `npm run test`     | Run all tests            |
-| `npm run coverage` | Generate coverage report |
-| `npm run lint`     | Run linting checks       |
-| `npm run clean`    | Clean build artifacts    |
+- Node.js 20+
+- npm 7+
+- A Sepolia RPC provider (Infura is configured)
+- A funded Sepolia account private key
 
-## 📚 Documentation
+## Configuration
 
-- [FHEVM Documentation](https://docs.zama.ai/fhevm)
-- [FHEVM Hardhat Setup Guide](https://docs.zama.ai/protocol/solidity-guides/getting-started/setup)
-- [FHEVM Testing Guide](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat/write_test)
-- [FHEVM Hardhat Plugin](https://docs.zama.ai/protocol/solidity-guides/development-guide/hardhat)
+Backend configuration uses environment variables loaded by `dotenv` in `hardhat.config.ts`.
 
-## 📄 License
+Required variables (in `.env` at the repository root):
 
-This project is licensed under the BSD-3-Clause-Clear License. See the [LICENSE](LICENSE) file for details.
+- `PRIVATE_KEY`: private key for deployment and transactions.
+- `INFURA_API_KEY`: Sepolia RPC access key.
 
-## 🆘 Support
+Optional variables:
 
-- **GitHub Issues**: [Report bugs or request features](https://github.com/zama-ai/fhevm/issues)
-- **Documentation**: [FHEVM Docs](https://docs.zama.ai)
-- **Community**: [Zama Discord](https://discord.gg/zama)
+- `ETHERSCAN_API_KEY`: verification key for `hardhat-verify`.
 
----
+Notes:
 
-**Built with ❤️ by the Zama team**
+- This project uses a single private key for deployments. Seed-phrase-based flows are not used.
+- The frontend does not use environment variables.
+
+## Install Dependencies
+
+```bash
+npm install
+```
+
+## Compile and Test
+
+```bash
+npm run compile
+npm run test
+```
+
+Run tests on Sepolia (after deployment):
+
+```bash
+npm run test:sepolia
+```
+
+## Deployments
+
+Deploy to a local Hardhat network:
+
+```bash
+npm run deploy:localhost
+```
+
+Deploy to Sepolia:
+
+```bash
+npm run deploy:sepolia
+```
+
+Verify the deployed contract:
+
+```bash
+npm run verify:sepolia -- <CONTRACT_ADDRESS>
+```
+
+## Frontend Integration Notes
+
+- The frontend must read the ABI generated by deployments in `deployments/sepolia`.
+- Reads should use viem; writes should use ethers.
+- The frontend should not rely on local storage or environment variables.
+- The UI should target a live network (Sepolia for production usage).
+
+## Security and Privacy Model
+
+- Encrypted tallies are never decrypted during voting.
+- All tally updates happen using FHE operations on encrypted values.
+- Metadata (poll name, options, creator, time window) is public.
+- Votes are limited to one per address per poll; this is not a full identity system.
+- Anyone can finalize a poll after the end time, preventing lock-in.
+
+## Limitations
+
+- No identity or anti-sybil system is included.
+- Gas costs are higher due to encrypted computation.
+- Polls are immutable once created (no edits, no option changes).
+- Results are only available after explicit finalization.
+- The contract relies on relayer-generated proofs for encrypted inputs.
+
+## Future Roadmap
+
+- Add optional anti-sybil integrations.
+- Support multiple polls per creator with richer metadata.
+- Improve result UX with charts and export formats.
+- Add off-chain indexing for faster poll discovery.
+- Expand to additional FHEVM-supported networks.
+- Explore delegated or weighted voting modes.
+- Add automated finalization and monitoring tools.
+
+## License
+
+BSD-3-Clause-Clear. See `LICENSE`.
